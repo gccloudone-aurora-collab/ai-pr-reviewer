@@ -9,6 +9,7 @@ export type ReviewComment = {
   in_reply_to_id?: number;
   id: number;
   start_line?: number | null;
+  created_at?: string;
   user: {
     login: string;
   };
@@ -64,15 +65,54 @@ export function isThreadRelevant(thread: ReviewCommentThread): boolean {
 }
 
 function generateCommentThreads(reviewComments: ReviewComment[]): ReviewCommentThread[] {
-  const topLevelComments = reviewComments.filter((c) => !c.in_reply_to_id && c.body.length);
+  const commentById = new Map<number, ReviewComment>();
+  for (const comment of reviewComments) {
+    commentById.set(comment.id, comment);
+  }
 
-  return topLevelComments.map((topLevelComment) => {
+  const findRootComment = (comment: ReviewComment): ReviewComment => {
+    let current = comment;
+    while (current.in_reply_to_id) {
+      const parent = commentById.get(current.in_reply_to_id);
+      if (!parent) {
+        break;
+      }
+      current = parent;
+    }
+    return current;
+  };
+
+  const threadsByRootId = new Map<number, ReviewComment[]>();
+  for (const comment of reviewComments) {
+    if (!comment.body.length) {
+      continue;
+    }
+    const root = findRootComment(comment);
+    const rootId = root.id;
+    const existing = threadsByRootId.get(rootId) ?? [];
+    existing.push(comment);
+    threadsByRootId.set(rootId, existing);
+  }
+
+  const sortByThreadOrder = (a: ReviewComment, b: ReviewComment) => {
+    if (!a.in_reply_to_id && b.in_reply_to_id) {
+      return -1;
+    }
+    if (a.in_reply_to_id && !b.in_reply_to_id) {
+      return 1;
+    }
+    if (a.created_at && b.created_at) {
+      return a.created_at.localeCompare(b.created_at);
+    }
+    return a.id - b.id;
+  };
+
+  return [...threadsByRootId.entries()].map(([rootId, comments]) => {
+    const root = commentById.get(rootId) ?? comments[0];
+    const sortedComments = [...comments].sort(sortByThreadOrder);
     return {
-      file: topLevelComment.path,
-      comments: [
-        topLevelComment,
-        ...reviewComments.filter((c) => c.in_reply_to_id === topLevelComment.id),
-      ],
+      file: root?.path ?? comments[0].path,
+      comments: sortedComments,
     };
   });
 }
