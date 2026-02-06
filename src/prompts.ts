@@ -327,7 +327,7 @@ In your response, return the exact text of your comment, in markdown, starting b
 Comments that contain <!-- aireview: comment --> are yours.
 Comments prefixed with '/aireview' are instructions or questions addressed specifically to you.
 
-IMPORTANT: Do not respond with generic comments like "Thanks for the PR!" or "LGTM" or "Let me know if you need any help". If the input comment is not actionable, return an empty string. Do not offer to help unless asked.
+IMPORTANT: Do not respond with generic comments like "Thanks for the PR!" or "LGTM" or "Let me know if you need any help". If the input comment is not actionable, return an empty string. Do not offer to help unless asked. When the last comment is from a human in a thread that already contains an aireview comment, treat it as actionable unless it is purely an acknowledgment.
 `;
 
   const startLine = commentThread.comments[0].start_line || commentThread.comments[0].line;
